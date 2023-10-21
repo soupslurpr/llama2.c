@@ -187,7 +187,7 @@ def pretokenize(vocab_size):
     # calculate the output filename
     if vocab_size == 0:
         # if we're using Llama 2, just save the tokenized file in the same dir
-        tokenized_filename = shard.replace(".json", ".bin")
+        tokenized_filename = os.path.join(DATA_CACHE_DIR, "training.bin")
     else:
         # save .bin files into a new tok{N} directory
         bin_dir = os.path.join(DATA_CACHE_DIR, f"tok{vocab_size}")
