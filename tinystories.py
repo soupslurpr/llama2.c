@@ -160,18 +160,46 @@ def process_shard(args, vocab_size):
 
 def pretokenize(vocab_size):
     # iterate the shards and tokenize all of them one by one
-    data_dir = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data")
-    shard_filenames = sorted(glob.glob(os.path.join(data_dir, "*.json")))
+    # data_dir = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data")
+    # shard_filenames = sorted(glob.glob(os.path.join(data_dir, "*.json")))
     if vocab_size > 0:
         # .bin files will be saved into tok{N} directory, create it once here
         bin_dir = os.path.join(DATA_CACHE_DIR, f"tok{vocab_size}")
         os.makedirs(bin_dir, exist_ok=True)
 
-    # process all the shards in a process pool
-    fun = partial(process_shard, vocab_size=vocab_size)
-    with ProcessPoolExecutor() as executor:
-        executor.map(fun, enumerate(shard_filenames))
-    print("Done.")
+    tokenizer_model = get_tokenizer_model_path(vocab_size)
+    enc = Tokenizer(tokenizer_model)
+
+    training_data_file = os.path.join(DATA_CACHE_DIR, "training.txt")
+    with open(training_data_file, "r") as f:
+        text = f.read()
+        
+    all_tokens = []
+    tokens = enc.encode(text, bos=False, eos=False)
+    all_tokens.extend(tokens)
+    # for example in tqdm(data, position=shard_id):
+    #     text = example["story"]
+    #     text = text.strip()  # get rid of leading/trailing whitespace
+    #     tokens = enc.encode(text, bos=True, eos=False)  # encode the text, use BOS
+    #     all_tokens.extend(tokens)
+    # convert to uint16 nparray
+    all_tokens = np.array(all_tokens, dtype=np.uint16)
+    # calculate the output filename
+    if vocab_size == 0:
+        # if we're using Llama 2, just save the tokenized file in the same dir
+        tokenized_filename = shard.replace(".json", ".bin")
+    else:
+        # save .bin files into a new tok{N} directory
+        bin_dir = os.path.join(DATA_CACHE_DIR, f"tok{vocab_size}")
+        shard_basename = os.path.basename(shard)
+        bin_basename = shard_basename.replace(".json", ".bin")
+        tokenized_filename = os.path.join(bin_dir, bin_basename)
+    # write the bytes
+    with open(tokenized_filename, "wb") as f:
+        f.write(all_tokens.tobytes())
+    # calculate the average sequence length (they are separated by BOS=1)
+    avg_seq_len = all_tokens.size / ((all_tokens == 1).sum())
+    print(f"Saved {tokenized_filename}, average seqlen: {avg_seq_len:.2f}")
 
 
 class PretokDataset(torch.utils.data.IterableDataset):
