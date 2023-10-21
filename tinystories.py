@@ -42,9 +42,9 @@ def download():
     """Downloads the TinyStories dataset to DATA_CACHE_DIR"""
     os.makedirs(DATA_CACHE_DIR, exist_ok=True)
 
-    # download the TinyStories dataset, unless it's already downloaded
-    data_url = "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStories_all_data.tar.gz"
-    data_filename = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data.tar.gz")
+    # download the training data, unless it's already downloaded
+    data_url = "https://raw.githubusercontent.com/soupslurpr/assistant-intent-classification/master/formatted_data/training.txt"
+    data_filename = os.path.join(DATA_CACHE_DIR, "training.txt")
     if not os.path.exists(data_filename):
         print(f"Downloading {data_url} to {data_filename}...")
         download_file(data_url, data_filename)
@@ -52,21 +52,21 @@ def download():
         print(f"{data_filename} already exists, skipping download...")
 
     # unpack the tar.gz file into all the data shards (json files)
-    data_dir = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data")
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir, exist_ok=True)
-        print(f"Unpacking {data_filename}...")
-        os.system(f"tar -xzf {data_filename} -C {data_dir}")
-    else:
-        print(f"{data_dir} already exists, skipping unpacking...")
+    # data_dir = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data")
+    # if not os.path.exists(data_dir):
+    #     os.makedirs(data_dir, exist_ok=True)
+    #     print(f"Unpacking {data_filename}...")
+    #     os.system(f"tar -xzf {data_filename} -C {data_dir}")
+    # else:
+    #     print(f"{data_dir} already exists, skipping unpacking...")
 
     # print a single example just for debugging and such
-    shard_filenames = sorted(glob.glob(os.path.join(data_dir, "*.json")))
-    with open(shard_filenames[0], "r") as f:
-        data = json.load(f)
-    print("Download done.")
-    print(f"Number of shards: {len(shard_filenames)}")
-    print(f"Example story:\n{data[0]}")
+    # shard_filenames = sorted(glob.glob(os.path.join(data_dir, "*.json")))
+    # with open(shard_filenames[0], "r") as f:
+    #     data = json.load(f)
+    # print("Download done.")
+    # print(f"Number of shards: {len(shard_filenames)}")
+    # print(f"Example story:\n{data[0]}")
 
 def train_vocab(vocab_size):
     """
@@ -80,27 +80,29 @@ def train_vocab(vocab_size):
     prefix = os.path.join(DATA_CACHE_DIR, f"tok{vocab_size}")
 
     # how many shards we'll use for vocab training, kept low for efficiency
-    num_shards = 10
+    # num_shards = 10
 
     # 1) export a large chunk of text as a single text file tiny.txt
-    tiny_file = os.path.join(DATA_CACHE_DIR, "tiny.txt")
-    data_dir = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data")
-    shard_filenames = sorted(glob.glob(os.path.join(data_dir, "*.json")))
+    # tiny_file = os.path.join(DATA_CACHE_DIR, "tiny.txt")
+    # data_dir = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data")
+    # shard_filenames = sorted(glob.glob(os.path.join(data_dir, "*.json")))
 
-    print(f"Writing temporary file {tiny_file} with {num_shards} shards...")
-    with open(tiny_file, "w", encoding="utf-8") as of:
-        for shard in tqdm(shard_filenames[:num_shards]):
-            with open(shard, "r") as f:
-                data = json.load(f)
-            for example in data:
-                text = example["story"]
-                text = text.strip()
-                of.write(text + "\n")
-    print(f"Size is: {os.path.getsize(tiny_file) / 1024 / 1024:.2f} MB")
+    # print(f"Writing temporary file {tiny_file} with {num_shards} shards...")
+    # with open(tiny_file, "w", encoding="utf-8") as of:
+    #     for shard in tqdm(shard_filenames[:num_shards]):
+    #         with open(shard, "r") as f:
+    #             data = json.load(f)
+    #         for example in data:
+    #             text = example["story"]
+    #             text = text.strip()
+    #             of.write(text + "\n")
+    # print(f"Size is: {os.path.getsize(tiny_file) / 1024 / 1024:.2f} MB")
 
+    training_data_file = os.path.join(DATA_CACHE_DIR, "training.txt")
+    
     # 2) train the sentencepiece model
     print("Will now train the vocab...")
-    spm.SentencePieceTrainer.train(input=tiny_file,
+    spm.SentencePieceTrainer.train(input=training_data_file,
                                    model_prefix=prefix,
                                    model_type="bpe",
                                    vocab_size=vocab_size,
